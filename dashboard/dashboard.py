@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import seaborn as sns
+import os
 
 # COLOR PALETTE
 PRIMARY = '#4e79a7'
@@ -47,7 +48,8 @@ st.markdown("""
 #LOAD DATA
 @st.cache_data
 def load_data():
-    df = pd.read_csv("main_data.csv")
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    df = pd.read_csv(os.path.join(BASE_DIR, "main_data.csv"))
     df['dteday'] = pd.to_datetime(df['dteday'])
     
     if 'temp' in df.columns and 'temp_celsius' not in df.columns:
@@ -57,7 +59,9 @@ def load_data():
 
 @st.cache_data
 def load_hour():
-    hdf = pd.read_csv("../data/hour.csv") if __import__('os').path.exists("../data/hour.csv") else None
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    hour_path = os.path.join(BASE_DIR, "..", "data", "hour.csv")
+    hdf = pd.read_csv(hour_path) if os.path.exists(hour_path) else None
     if hdf is None:
         return None
     hdf['dteday'] = pd.to_datetime(hdf['dteday'])
