@@ -200,7 +200,21 @@ st.divider()
 st.subheader("Pertanyaan 2: Pola Peminjaman per Jam (Hari Kerja vs Hari Libur)")
 
 if hour_df is not None:
-    hourly = hour_df.groupby(['hr', 'workingday'])['cnt'].mean().reset_index()
+    filtered_hour = hour_df.copy()
+    if len(date_range) == 2:
+        filtered_hour = filtered_hour[
+            (pd.to_datetime(filtered_hour['dteday']).dt.date >= start_date) &
+            (pd.to_datetime(filtered_hour['dteday']).dt.date <= end_date)
+        ]
+    if selected_season != 'Semua':
+        season_map = {'Spring': 1, 'Summer': 2, 'Fall': 3, 'Winter': 4}
+        if selected_season in season_map:
+            filtered_hour = filtered_hour[filtered_hour['season'] == season_map[selected_season]]
+    if selected_weather != 'Semua':
+        weather_map = {'Clear': 1, 'Mist/Cloudy': 2, 'Light Rain/Snow': 3, 'Heavy Rain/Snow': 4}
+        if selected_weather in weather_map:
+            filtered_hour = filtered_hour[filtered_hour['weathersit'] == weather_map[selected_weather]]
+    hourly = filtered_hour.groupby(['hr', 'workingday'])['cnt'].mean().reset_index()
     work = hourly[hourly['workingday'] == 1]
     non_work = hourly[hourly['workingday'] == 0]
 
@@ -247,14 +261,15 @@ else:
 st.divider()
 st.subheader("Analisis Lanjutan: Clustering Permintaan (Manual Binning)")
 
-bins = [0, 2000, 4000, 6000, day_df['cnt'].max() + 1]
+bins = [0, 2000, 4000, 6000, day_df['cnt'].max() + 1]  
 labels = ['Low\n(0–2K)', 'Moderate\n(2K–4K)', 'High\n(4K–6K)', 'Very High\n(>6K)']
-day_df['demand_category'] = pd.cut(day_df['cnt'], bins=bins, labels=labels)
+filtered = filtered.copy()
+filtered['demand_category'] = pd.cut(filtered['cnt'], bins=bins, labels=labels)
 
 col1, col2 = st.columns(2)
 
 with col1:
-    counts = day_df['demand_category'].value_counts().reindex(labels)
+    counts = filtered['demand_category'].value_counts().reindex(labels)
     fig, ax = plt.subplots(figsize=(6, 4))
     cluster_colors = [SECONDARY, SECONDARY, PRIMARY, SECONDARY]
     bars = ax.bar(labels, counts.values, color=cluster_colors, edgecolor='white', linewidth=1.5)
@@ -267,10 +282,10 @@ with col1:
     plt.close()
 
 with col2:
-    avg_temp = day_df.groupby('demand_category')['temp_celsius'].mean().reindex(labels)
+    avg_temp = filtered.groupby('demand_category')['temp_celsius'].mean().reindex(labels)
     fig, ax = plt.subplots(figsize=(6, 4))
     cluster_colors2 = [SECONDARY, SECONDARY, SECONDARY, PRIMARY]
-    bars2 = ax.bar(labels, avg_temp.values, color=cluster_colors, edgecolor='white', linewidth=1.5)
+    bars2 = ax.bar(labels, avg_temp.values, color=cluster_colors2, edgecolor='white', linewidth=1.5)
     ax.bar_label(bars2, fmt='%.1f°C', padding=3, fontsize=9)
     ax.set_title('Rata-rata Suhu per Kategori Permintaan', fontweight='bold')
     ax.set_ylabel('Suhu (°C)')
@@ -280,7 +295,7 @@ with col2:
     plt.close()
 
 st.markdown("**Tabel Profil Cluster:**")
-profile = day_df.groupby('demand_category').agg(
+profile = filtered.groupby('demand_category').agg(
     Jumlah_Hari=('cnt', 'count'),
     Avg_Peminjaman=('cnt', 'mean'),
     Avg_Suhu_C=('temp_celsius', 'mean'),
